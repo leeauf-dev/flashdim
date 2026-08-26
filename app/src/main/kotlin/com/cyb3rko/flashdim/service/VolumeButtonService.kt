@@ -110,7 +110,7 @@ class VolumeButtonService : AccessibilityService() {
             return true
         }
 
-        // A single press changes exactly one level.
+        // A single press changes exactly one step.
         if (event.repeatCount > 0) {
             return true
         }
@@ -119,10 +119,10 @@ class VolumeButtonService : AccessibilityService() {
 
         val newLevel = when (event.keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP ->
-                (currentLevel + 1).coerceAtMost(maxLevel)
+                (currentLevel + LEVEL_STEP).coerceAtMost(maxLevel)
 
             KeyEvent.KEYCODE_VOLUME_DOWN ->
-                (currentLevel - 1).coerceAtLeast(1)
+                (currentLevel - LEVEL_STEP).coerceAtLeast(MIN_LEVEL)
 
             else -> currentLevel
         }
@@ -157,6 +157,11 @@ class VolumeButtonService : AccessibilityService() {
             "FlashDim Service",
             "VolumeButtonService interrupted"
         )
+    }
+
+    private companion object {
+        const val MIN_LEVEL = 1
+        const val LEVEL_STEP = 10
     }
 
     override fun onAccessibilityEvent(

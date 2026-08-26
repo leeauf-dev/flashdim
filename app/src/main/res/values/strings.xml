@@ -80,7 +80,7 @@
     <string name="preference_item_quick_settings_link">Quick settings toggle link</string>
     <string name="preference_item_quick_settings_link_summary">Link the preferred level to the quick settings tile</string>
     <string name="preference_item_volume_buttons">Volume buttons service</string>
-    <string name="preference_item_volume_buttons_summary">Use Volume Up and Volume Down to adjust brightness while the flashlight is on</string>
+    <string name="preference_item_volume_buttons_summary">Use Volume Up and Volume Down to adjust brightness in steps of 10 while the flashlight is on</string>
     <string name="preference_category_vibration">Vibration</string>
     <string name="preference_item_tactile_buttons">Tactile buttons</string>
     <string name="preference_item_tactile_buttons_summary">Vibrate on button clicks and seekbar swipes</string>
