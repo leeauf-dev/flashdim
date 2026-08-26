@@ -66,14 +66,6 @@
             app:summary="@string/preference_item_volume_buttons_summary"
             app:icon="@drawable/ic_button_service" />
 
-        <SwitchPreferenceCompat
-            app:key="volume_buttons_link"
-            app:defaultValue="false"
-            app:title="@string/preference_item_volume_buttons_link"
-            app:enabled="false"
-            app:summary="@string/preference_item_volume_buttons_link_summary"
-            app:icon="@drawable/ic_link_scaled" />
-
     </PreferenceCategory>
 
     <PreferenceCategory

@@ -22,8 +22,12 @@ class VolumeButtonService : AccessibilityService() {
     private lateinit var cameraManager: CameraManager
     private var cameraId: String? = null
 
+    @Volatile
     private var torchEnabled = false
+
+    @Volatile
     private var currentLevel = 1
+    private var defaultLevel = 1
     private var maxLevel = 1
 
     override fun onServiceConnected() {
@@ -34,7 +38,7 @@ class VolumeButtonService : AccessibilityService() {
         cameraManager =
             getSystemService(Context.CAMERA_SERVICE) as CameraManager
 
-        // Cherche la caméra possédant réellement un flash
+        // Only track the camera whose torch FlashDim can actually control.
         cameraId = cameraManager.cameraIdList.firstOrNull { id ->
             cameraManager
                 .getCameraCharacteristics(id)
@@ -50,10 +54,12 @@ class VolumeButtonService : AccessibilityService() {
                     CameraCharacteristics.FLASH_INFO_STRENGTH_MAXIMUM_LEVEL
                 ) ?: 1
 
-            currentLevel =
+            defaultLevel =
                 characteristics.get(
                     CameraCharacteristics.FLASH_INFO_STRENGTH_DEFAULT_LEVEL
                 ) ?: 1
+
+            currentLevel = defaultLevel
         }
 
         cameraManager.registerTorchCallback(
@@ -66,6 +72,7 @@ class VolumeButtonService : AccessibilityService() {
                     if (id != cameraId) return
 
                     torchEnabled = enabled
+                    if (!enabled) currentLevel = defaultLevel
                     Safe.writeBoolean(Safe.FLASH_ACTIVE, enabled)
                 }
 
@@ -85,8 +92,7 @@ class VolumeButtonService : AccessibilityService() {
     override fun onKeyEvent(event: KeyEvent?): Boolean {
         if (event == null) return false
 
-        // Lampe éteinte :
-        // ne touche pas aux boutons de volume
+        // Let Android handle volume keys normally while the torch is off.
         if (!torchEnabled) {
             return false
         }
@@ -99,13 +105,12 @@ class VolumeButtonService : AccessibilityService() {
             return false
         }
 
-        // On consomme ACTION_UP aussi pour empêcher
-        // Android de modifier le volume
+        // Consume ACTION_UP too, otherwise Android may still change the volume.
         if (event.action != KeyEvent.ACTION_DOWN) {
             return true
         }
 
-        // Ignore les répétitions lorsqu'on maintient le bouton
+        // A single press changes exactly one level.
         if (event.repeatCount > 0) {
             return true
         }

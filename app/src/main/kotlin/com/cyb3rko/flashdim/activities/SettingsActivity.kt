@@ -170,7 +170,6 @@ internal class SettingsActivity :
                         true
                     }
                 }
-                findPreference<Preference>(Safe.VOLUME_BUTTONS_LINK)?.isEnabled = true
             }
         }
 
