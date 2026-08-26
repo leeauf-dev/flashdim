@@ -72,7 +72,12 @@ class VolumeButtonService : AccessibilityService() {
                     if (id != cameraId) return
 
                     torchEnabled = enabled
-                    if (!enabled) currentLevel = defaultLevel
+                    currentLevel = if (enabled) {
+                        Safe.getInt(Safe.CURRENT_LEVEL, defaultLevel)
+                            .coerceIn(MIN_LEVEL, maxLevel)
+                    } else {
+                        defaultLevel
+                    }
                     Safe.writeBoolean(Safe.FLASH_ACTIVE, enabled)
                 }
 
@@ -83,6 +88,7 @@ class VolumeButtonService : AccessibilityService() {
                     if (id != cameraId) return
 
                     currentLevel = newStrengthLevel
+                    Safe.writeInt(Safe.CURRENT_LEVEL, newStrengthLevel)
                 }
             },
             Handler(Looper.getMainLooper())
@@ -93,7 +99,7 @@ class VolumeButtonService : AccessibilityService() {
         if (event == null) return false
 
         // Let Android handle volume keys normally while the torch is off.
-        if (!torchEnabled) {
+        if (!torchEnabled || maxLevel <= MIN_LEVEL) {
             return false
         }
 
@@ -107,11 +113,6 @@ class VolumeButtonService : AccessibilityService() {
 
         // Consume ACTION_UP too, otherwise Android may still change the volume.
         if (event.action != KeyEvent.ACTION_DOWN) {
-            return true
-        }
-
-        // A single press changes exactly one step.
-        if (event.repeatCount > 0) {
             return true
         }
 
@@ -135,6 +136,7 @@ class VolumeButtonService : AccessibilityService() {
                 )
 
                 currentLevel = newLevel
+                Safe.writeInt(Safe.CURRENT_LEVEL, newLevel)
 
                 Log.i(
                     "FlashDim Service",

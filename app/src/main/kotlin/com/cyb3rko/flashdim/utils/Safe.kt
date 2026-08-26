@@ -26,6 +26,7 @@ internal object Safe {
     const val APPSTART_FLASH = "appstart_flash"
     const val BUTTON_VIBRATION = "button_vibration"
     const val FLASH_ACTIVE = "flash_active"
+    const val CURRENT_LEVEL = "current_level"
     const val PREFERRED_LEVEL = "initial_level"
     const val MAX_LEVEL = "max_level"
     const val MORSE_VIBRATION = "morse_vibration"

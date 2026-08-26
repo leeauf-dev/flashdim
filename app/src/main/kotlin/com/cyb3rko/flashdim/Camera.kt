@@ -21,6 +21,7 @@ import android.content.pm.PackageManager
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import androidx.appcompat.app.AppCompatActivity
+import com.cyb3rko.flashdim.utils.Safe
 
 internal class Camera(activity: AppCompatActivity) {
     private val cameraManager: CameraManager
@@ -65,6 +66,7 @@ internal class Camera(activity: AppCompatActivity) {
         if (currentLevel != level) {
             try {
                 cameraManager.turnOnTorchWithStrengthLevel(cameraId, level)
+                Safe.writeInt(Safe.CURRENT_LEVEL, level)
             } catch (e: Exception) {
                 handleFlashlightException(e, activity)
             }
@@ -89,6 +91,7 @@ internal class Camera(activity: AppCompatActivity) {
         }
 
         fun sendLightLevel(context: Context, level: Int, activate: Boolean) {
+            Safe.initialize(context)
             try {
                 val cameraManager = context.getSystemService(Context.CAMERA_SERVICE)
                     as CameraManager
@@ -99,6 +102,7 @@ internal class Camera(activity: AppCompatActivity) {
                         cameraManager.setTorchMode(cameraId, true)
                     } else {
                         cameraManager.turnOnTorchWithStrengthLevel(cameraId, validLevel)
+                        Safe.writeInt(Safe.CURRENT_LEVEL, validLevel)
                     }
                 } else {
                     cameraManager.setTorchMode(cameraId, false)
