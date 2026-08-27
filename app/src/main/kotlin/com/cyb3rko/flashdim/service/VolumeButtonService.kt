@@ -92,6 +92,13 @@ class VolumeButtonService : AccessibilityService() {
                     } else {
                         defaultLevel
                     }
+                    if (enabled && maxLevel > MIN_LEVEL) {
+                        try {
+                            cameraManager.turnOnTorchWithStrengthLevel(id, currentLevel)
+                        } catch (e: Exception) {
+                            Log.e("FlashDim Service", "Unable to restore torch level", e)
+                        }
+                    }
                     Safe.writeBoolean(Safe.FLASH_ACTIVE, enabled)
                 }
 
