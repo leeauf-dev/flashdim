@@ -30,6 +30,19 @@ class VolumeButtonService : AccessibilityService() {
     private var defaultLevel = 1
     private var maxLevel = 1
 
+    private val repeatHandler = Handler(Looper.getMainLooper())
+    private var repeatingKeyCode: Int? = null
+    private val repeatAction = object : Runnable {
+        override fun run() {
+            val keyCode = repeatingKeyCode ?: return
+            if (!torchEnabled || !changeLevel(keyCode)) {
+                stopKeyRepeat()
+                return
+            }
+            repeatHandler.postDelayed(this, REPEAT_INTERVAL_MS)
+        }
+    }
+
     override fun onServiceConnected() {
         super.onServiceConnected()
 
@@ -72,6 +85,7 @@ class VolumeButtonService : AccessibilityService() {
                     if (id != cameraId) return
 
                     torchEnabled = enabled
+                    if (!enabled) stopKeyRepeat()
                     currentLevel = if (enabled) {
                         Safe.getInt(Safe.CURRENT_LEVEL, defaultLevel)
                             .coerceIn(MIN_LEVEL, maxLevel)
@@ -100,25 +114,38 @@ class VolumeButtonService : AccessibilityService() {
 
         // Let Android handle volume keys normally while the torch is off.
         if (!torchEnabled || maxLevel <= MIN_LEVEL) {
+            stopKeyRepeat()
             return false
         }
 
         val isVolumeButton =
             event.keyCode == KeyEvent.KEYCODE_VOLUME_UP ||
-            event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN
+                event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN
 
-        if (!isVolumeButton) {
-            return false
+        if (!isVolumeButton) return false
+
+        when (event.action) {
+            KeyEvent.ACTION_DOWN -> {
+                if (event.repeatCount == 0 && repeatingKeyCode != event.keyCode) {
+                    stopKeyRepeat()
+                    if (changeLevel(event.keyCode)) {
+                        repeatingKeyCode = event.keyCode
+                        repeatHandler.postDelayed(repeatAction, LONG_PRESS_DELAY_MS)
+                    }
+                }
+            }
+
+            KeyEvent.ACTION_UP -> {
+                if (repeatingKeyCode == event.keyCode) stopKeyRepeat()
+            }
         }
 
-        // Consume ACTION_UP too, otherwise Android may still change the volume.
-        if (event.action != KeyEvent.ACTION_DOWN) {
-            return true
-        }
+        return true
+    }
 
+    private fun changeLevel(keyCode: Int): Boolean {
         val id = cameraId ?: return false
-
-        val newLevel = when (event.keyCode) {
+        val newLevel = when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP ->
                 (currentLevel + LEVEL_STEP).coerceAtMost(maxLevel)
 
@@ -128,42 +155,43 @@ class VolumeButtonService : AccessibilityService() {
             else -> currentLevel
         }
 
-        if (newLevel != currentLevel) {
-            try {
-                cameraManager.turnOnTorchWithStrengthLevel(
-                    id,
-                    newLevel
-                )
+        if (newLevel == currentLevel) return false
 
-                currentLevel = newLevel
-                Safe.writeInt(Safe.CURRENT_LEVEL, newLevel)
-
-                Log.i(
-                    "FlashDim Service",
-                    "Torch level: $currentLevel/$maxLevel"
-                )
-            } catch (e: Exception) {
-                Log.e(
-                    "FlashDim Service",
-                    "Unable to change torch level",
-                    e
-                )
-            }
+        return try {
+            cameraManager.turnOnTorchWithStrengthLevel(id, newLevel)
+            currentLevel = newLevel
+            Safe.writeInt(Safe.CURRENT_LEVEL, newLevel)
+            Log.i("FlashDim Service", "Torch level: $currentLevel/$maxLevel")
+            true
+        } catch (e: Exception) {
+            Log.e("FlashDim Service", "Unable to change torch level", e)
+            false
         }
+    }
 
-        return true
+    private fun stopKeyRepeat() {
+        repeatHandler.removeCallbacks(repeatAction)
+        repeatingKeyCode = null
     }
 
     override fun onInterrupt() {
+        stopKeyRepeat()
         Log.i(
             "FlashDim Service",
             "VolumeButtonService interrupted"
         )
     }
 
+    override fun onDestroy() {
+        stopKeyRepeat()
+        super.onDestroy()
+    }
+
     private companion object {
         const val MIN_LEVEL = 1
         const val LEVEL_STEP = 10
+        const val LONG_PRESS_DELAY_MS = 350L
+        const val REPEAT_INTERVAL_MS = 75L
     }
 
     override fun onAccessibilityEvent(
