@@ -136,6 +136,29 @@ class MainActivity : AppCompatActivity() {
         intentFlash = false
     }
 
+    override fun onStart() {
+        super.onStart()
+        if (maxLevel <= 1) return
+
+        camera.registerTorchListener(
+            onModeChanged = { enabled ->
+                if (!enabled) syncLightLevelUi(0)
+            },
+            onStrengthChanged = ::syncLightLevelUi
+        )
+    }
+
+    override fun onStop() {
+        if (maxLevel > 1) camera.unregisterTorchListener()
+        super.onStop()
+    }
+
+    private fun syncLightLevelUi(level: Int) {
+        currentLevel = level
+        binding.seekBar.setProgress(level)
+        updateLightLevelView(level)
+    }
+
     private fun handleShortCutIntent() {
         if (intent.action == Intent.ACTION_MAIN || intent.action == Intent.ACTION_VIEW) return
         intentFlash = true

@@ -20,12 +20,15 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.os.Handler
+import android.os.Looper
 import androidx.appcompat.app.AppCompatActivity
 import com.cyb3rko.flashdim.utils.Safe
 
 internal class Camera(activity: AppCompatActivity) {
     private val cameraManager: CameraManager
     private val cameraId: String
+    private var torchCallback: CameraManager.TorchCallback? = null
     val idEmpty: Boolean
         get() = cameraId.isEmpty()
     val maxLevel: Int
@@ -71,6 +74,30 @@ internal class Camera(activity: AppCompatActivity) {
                 handleFlashlightException(e, activity)
             }
         }
+    }
+
+    fun registerTorchListener(
+        onModeChanged: (Boolean) -> Unit,
+        onStrengthChanged: (Int) -> Unit
+    ) {
+        if (torchCallback != null) return
+
+        torchCallback = object : CameraManager.TorchCallback() {
+            override fun onTorchModeChanged(id: String, enabled: Boolean) {
+                if (id == cameraId) onModeChanged(enabled)
+            }
+
+            override fun onTorchStrengthLevelChanged(id: String, newStrengthLevel: Int) {
+                if (id == cameraId) onStrengthChanged(newStrengthLevel)
+            }
+        }.also { callback ->
+            cameraManager.registerTorchCallback(callback, Handler(Looper.getMainLooper()))
+        }
+    }
+
+    fun unregisterTorchListener() {
+        torchCallback?.let(cameraManager::unregisterTorchCallback)
+        torchCallback = null
     }
 
     companion object {
