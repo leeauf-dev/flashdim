@@ -7,6 +7,7 @@
 package com.cyb3rko.flashdim.service
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
@@ -32,6 +33,7 @@ class VolumeButtonService : AccessibilityService() {
 
     private val repeatHandler = Handler(Looper.getMainLooper())
     private var repeatingKeyCode: Int? = null
+    private var keyFilteringEnabled = false
     private val repeatAction = object : Runnable {
         override fun run() {
             val keyCode = repeatingKeyCode ?: return
@@ -75,6 +77,11 @@ class VolumeButtonService : AccessibilityService() {
             currentLevel = defaultLevel
         }
 
+        // Do not take part in the volume-key dispatch chain until the torch is
+        // actually on. This keeps the system volume controls completely native
+        // while the flashlight is off.
+        setKeyFilteringEnabled(false)
+
         cameraManager.registerTorchCallback(
             object : CameraManager.TorchCallback() {
 
@@ -86,6 +93,7 @@ class VolumeButtonService : AccessibilityService() {
 
                     torchEnabled = enabled
                     if (!enabled) stopKeyRepeat()
+                    setKeyFilteringEnabled(enabled && maxLevel > MIN_LEVEL)
                     currentLevel = if (enabled) {
                         Safe.getInt(Safe.CURRENT_LEVEL, defaultLevel)
                             .coerceIn(MIN_LEVEL, maxLevel)
@@ -181,6 +189,19 @@ class VolumeButtonService : AccessibilityService() {
         repeatingKeyCode = null
     }
 
+    private fun setKeyFilteringEnabled(enabled: Boolean) {
+        if (keyFilteringEnabled == enabled) return
+
+        val info = serviceInfo
+        info.flags = if (enabled) {
+            info.flags or AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
+        } else {
+            info.flags and AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS.inv()
+        }
+        serviceInfo = info
+        keyFilteringEnabled = enabled
+    }
+
     override fun onInterrupt() {
         stopKeyRepeat()
         Log.i(
@@ -191,6 +212,7 @@ class VolumeButtonService : AccessibilityService() {
 
     override fun onDestroy() {
         stopKeyRepeat()
+        setKeyFilteringEnabled(false)
         super.onDestroy()
     }
 
